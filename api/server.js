@@ -50,14 +50,14 @@ const auth = (req, res, next) => {
   }
 };
 
-// Rutas
-// Ruta raíz (para evitar "Cannot GET /")
-app.get('/', (req, res) => {
+// Rutas con prefijo /api
+// Ruta raíz (para verificar que funciona)
+app.get('/api/', (req, res) => {
   res.json({ message: 'Backend URCO funcionando en Vercel!' });
 });
 
 // Usuarios
-app.post('/users/register', async (req, res) => {
+app.post('/api/users/register', async (req, res) => {
   const { username, email, password } = req.body;
   const hashedPassword = await bcrypt.hash(password, 10);
   const user = new User({ username, email, password: hashedPassword });
@@ -69,7 +69,7 @@ app.post('/users/register', async (req, res) => {
   }
 });
 
-app.post('/users/login', async (req, res) => {
+app.post('/api/users/login', async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email });
   if (!user || !(await bcrypt.compare(password, user.password))) {
@@ -80,12 +80,12 @@ app.post('/users/login', async (req, res) => {
 });
 
 // Valores de reciclaje (protegido)
-app.get('/recycling-values', auth, async (req, res) => {
+app.get('/api/recycling-values', auth, async (req, res) => {
   const values = await RecyclingValue.find();
   res.json(values);
 });
 
-app.post('/recycling-values', auth, async (req, res) => {
+app.post('/api/recycling-values', auth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Acceso denegado' });
   const { material, value, description } = req.body;
   const newValue = new RecyclingValue({ material, value, description });
