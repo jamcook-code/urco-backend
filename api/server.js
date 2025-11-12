@@ -49,7 +49,10 @@ const auth = (req, res, next) => {
     res.status(400).json({ message: 'Token inválido' });
   }
 };
-
+// Ruta raíz (redirige a /api/ o muestra mensaje)
+app.get('/', (req, res) => {
+  res.json({ message: 'Bienvenido a URCO Backend. Usa /api/ para las rutas.' });
+});
 // Rutas con prefijo /api
 // Ruta raíz (para verificar que funciona)
 app.get('/api/', (req, res) => {
