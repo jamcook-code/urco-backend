@@ -5,12 +5,11 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
-// Importar middleware desde archivo separado
 const auth = require('../middleware/auth');
 
 const app = express();
 
-// Configuración de CORS para permitir Netlify
+// CORS
 const corsOptions = {
   origin: ['https://peaceful-crostata-5451a0.netlify.app', 'http://localhost:3000'],
   credentials: true,
@@ -18,8 +17,6 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 app.use(cors(corsOptions));
-
-// Handler global para OPTIONS (preflight)
 app.options('*', (req, res) => {
   res.header('Access-Control-Allow-Origin', 'https://peaceful-crostata-5451a0.netlify.app');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -28,10 +25,9 @@ app.options('*', (req, res) => {
   res.sendStatus(200);
 });
 
-// Middleware
 app.use(express.json());
 
-// Conexión a MongoDB
+// MongoDB
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -46,37 +42,43 @@ const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { type: String, default: 'user' }, // Ej. 'admin' o 'user'
+  role: { type: String, default: 'user' },
+  points: { type: Number, default: 0 },
+  key: { type: String }, // Clave para aliados
 });
 
 const recyclingValueSchema = new mongoose.Schema({
   material: { type: String, required: true },
-  value: { type: Number, required: true }, // Valor por kg o unidad
+  value: { type: Number, required: true },
   description: String,
+});
+
+const pointsHistorySchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  type: { type: String, enum: ['ingreso', 'egreso'] },
+  points: { type: Number, required: true },
+  description: String,
+  date: { type: Date, default: Date.now },
 });
 
 const User = mongoose.model('User', userSchema);
 const RecyclingValue = mongoose.model('RecyclingValue', recyclingValueSchema);
+const PointsHistory = mongoose.model('PointsHistory', pointsHistorySchema);
 
-// Debug al inicio
-console.log('Server.js cargado');
-
-// Rutas con prefijo /api
-// Ruta raíz (redirige a /api/)
+// Rutas
 app.get('/', (req, res) => {
   res.redirect('/api/');
 });
 
-// Ruta de bienvenida en /api/
 app.get('/api/', (req, res) => {
   res.json({ message: 'Backend URCO funcionando en Vercel!' });
 });
 
 // Usuarios
 app.post('/api/users/register', async (req, res) => {
-  const { username, email, password } = req.body;
+  const { username, email, password, key } = req.body;
   const hashedPassword = await bcrypt.hash(password, 10);
-  const user = new User({ username, email, password: hashedPassword });
+  const user = new User({ username, email, password: hashedPassword, key, role: 'user' });
   try {
     await user.save();
     res.status(201).json({ message: 'Usuario registrado' });
@@ -86,24 +88,70 @@ app.post('/api/users/register', async (req, res) => {
 });
 
 app.post('/api/users/login', async (req, res) => {
-  console.log('POST /api/users/login recibido'); // Debug adicional
+  console.log('POST /api/users/login recibido');
   const { email, password } = req.body;
   const user = await User.findOne({ email });
   if (!user || !(await bcrypt.compare(password, user.password))) {
     return res.status(400).json({ message: 'Credenciales inválidas' });
   }
   const token = jwt.sign({ _id: user._id, role: user.role }, process.env.JWT_SECRET);
-  res.json({ token });
+  res.json({ token, user });
 });
 
-// Valores de reciclaje (protegido)
+app.put('/api/users/update-profile', auth, async (req, res) => {
+  const { username, email, key } = req.body;
+  const user = await User.findByIdAndUpdate(req.user._id, { username, email, key }, { new: true });
+  res.json(user);
+});
+
+app.get('/api/users/points-history', auth, async (req, res) => {
+  const history = await PointsHistory.find({ userId: req.user._id });
+  res.json(history);
+});
+
+app.post('/api/users/add-points', auth, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'gestor') return res.status(403).json({ message: 'Acceso denegado' });
+  const { email, points } = req.body;
+  const user = await User.findOne({ email });
+  if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+  user.points += parseInt(points);
+  await user.save();
+  const history = new PointsHistory({ userId: user._id, type: 'ingreso', points, description: 'Asignado por gestor' });
+  await history.save();
+  res.json({ message: 'Puntos agregados' });
+});
+
+app.post('/api/users/deduct-points', auth, async (req, res) => {
+  if (req.user.role !== 'aliado') return res.status(403).json({ message: 'Acceso denegado' });
+  const { email, points, description, key } = req.body;
+  const user = await User.findOne({ email });
+  if (!user || user.key !== key) return res.status(400).json({ message: 'Usuario o clave incorrecta' });
+  user.points -= parseInt(points);
+  await user.save();
+  const history = new PointsHistory({ userId: user._id, type: 'egreso', points, description });
+  await history.save();
+  res.json({ message: 'Puntos descontados' });
+});
+
+app.get('/api/users', auth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Acceso denegado' });
+  const users = await User.find();
+  res.json(users);
+});
+
+app.delete('/api/users/:id', auth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Acceso denegado' });
+  await User.findByIdAndDelete(req.params.id);
+  res.json({ message: 'Usuario eliminado' });
+});
+
+// Valores de reciclaje
 app.get('/api/recycling-values', auth, async (req, res) => {
   const values = await RecyclingValue.find();
   res.json(values);
 });
 
 app.post('/api/recycling-values', auth, async (req, res) => {
-  console.log('Rol del usuario:', req.user.role); // Debug para verificar rol
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Acceso denegado' });
   const { material, value, description } = req.body;
   const newValue = new RecyclingValue({ material, value, description });
@@ -115,5 +163,4 @@ app.post('/api/recycling-values', auth, async (req, res) => {
   }
 });
 
-// Exportar app para Vercel (no usar app.listen())
 module.exports = app;
