@@ -12,12 +12,13 @@ const app = express();
 
 // Configuración de CORS para permitir Netlify
 const corsOptions = {
-  origin: ['https://peaceful-crostata-5451a0.netlify.app'],
+  origin: ['https://peaceful-crostata-5451a0.netlify.app', 'http://localhost:3000'],
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Agrega methods
+  allowedHeaders: ['Content-Type', 'Authorization'], // Agrega headers
 };
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Agrega para preflight
-
+app.options('*', cors(corsOptions)); // Manejar preflight OPTIONS
 // Middleware
 app.use(express.json());
 
