@@ -5,6 +5,9 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
+// Importar middleware desde archivo separado
+const auth = require('./middleware/auth');
+
 const app = express();
 
 // Middleware
@@ -38,19 +41,8 @@ const recyclingValueSchema = new mongoose.Schema({
 const User = mongoose.model('User', userSchema);
 const RecyclingValue = mongoose.model('RecyclingValue', recyclingValueSchema);
 
-// Middleware de autenticación
-const auth = (req, res, next) => {
-  const token = req.header('Authorization')?.replace('Bearer ', '');
-  if (!token) return res.status(401).json({ message: 'Acceso denegado' });
-
-  try {
-    const verified = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = verified;
-    next();
-  } catch (err) {
-    res.status(400).json({ message: 'Token inválido' });
-  }
-};
+// Debug al inicio
+console.log('Server.js cargado');
 
 // Rutas con prefijo /api
 // Ruta raíz (redirige a /api/)
@@ -77,6 +69,7 @@ app.post('/api/users/register', async (req, res) => {
 });
 
 app.post('/api/users/login', async (req, res) => {
+  console.log('POST /api/users/login recibido'); // Debug adicional
   const { email, password } = req.body;
   const user = await User.findOne({ email });
   if (!user || !(await bcrypt.compare(password, user.password))) {
