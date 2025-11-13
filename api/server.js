@@ -10,8 +10,14 @@ const auth = require('../middleware/auth');
 
 const app = express();
 
+// Configuración de CORS para permitir Netlify
+const corsOptions = {
+  origin: ['https://peaceful-crostata-5451a0.netlify.app', 'http://localhost:3000'], // Permite Netlify y localhost para desarrollo
+  credentials: true,
+};
+app.use(cors(corsOptions));
+
 // Middleware
-app.use(cors());
 app.use(express.json());
 
 // Conexión a MongoDB
