@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 // Importar middleware desde archivo separado
-const auth = require('./middleware/auth');
+const auth = require('../middleware/auth');
 
 const app = express();
 
