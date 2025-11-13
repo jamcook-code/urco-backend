@@ -51,12 +51,14 @@ const auth = (req, res, next) => {
     res.status(400).json({ message: 'Token inválido' });
   }
 };
-// Ruta raíz (redirige a /api/ o muestra mensaje)
-app.get('/', (req, res) => {
-  res.json({ message: 'Bienvenido a URCO Backend. Usa /api/ para las rutas.' });
-});
+
 // Rutas con prefijo /api
-// Ruta raíz (para verificar que funciona)
+// Ruta raíz (redirige a /api/)
+app.get('/', (req, res) => {
+  res.redirect('/api/');
+});
+
+// Ruta de bienvenida en /api/
 app.get('/api/', (req, res) => {
   res.json({ message: 'Backend URCO funcionando en Vercel!' });
 });
@@ -91,6 +93,7 @@ app.get('/api/recycling-values', auth, async (req, res) => {
 });
 
 app.post('/api/recycling-values', auth, async (req, res) => {
+  console.log('Rol del usuario:', req.user.role); // Debug para verificar rol
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Acceso denegado' });
   const { material, value, description } = req.body;
   const newValue = new RecyclingValue({ material, value, description });
