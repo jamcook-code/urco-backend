@@ -14,18 +14,20 @@ const app = express();
 const corsOptions = {
   origin: ['https://peaceful-crostata-5451a0.netlify.app', 'http://localhost:3000'],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Agrega methods
-  allowedHeaders: ['Content-Type', 'Authorization'], // Agrega headers
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 app.use(cors(corsOptions));
+
+// Handler global para OPTIONS (preflight)
 app.options('*', (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', 'https://peaceful-crostata-5451a0.netlify.app');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Origin', 'https://peaceful-crostata-5451a0.netlify.app');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
   res.sendStatus(200);
 });
-app.options('*', cors(corsOptions)); // Manejar preflight OPTIONS
+
 // Middleware
 app.use(express.json());
 
