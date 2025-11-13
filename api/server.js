@@ -64,7 +64,57 @@ const pointsHistorySchema = new mongoose.Schema({
 const User = mongoose.model('User', userSchema);
 const RecyclingValue = mongoose.model('RecyclingValue', recyclingValueSchema);
 const PointsHistory = mongoose.model('PointsHistory', pointsHistorySchema);
+const registrationKeySchema = new mongoose.Schema({
+  role: { type: String, required: true, unique: true }, // 'aliado', 'gestor', 'admin'
+  key: { type: String, required: true },
+});
 
+const RegistrationKey = mongoose.model('RegistrationKey', registrationKeySchema);
+
+// Inicializa claves por defecto (ejecuta una vez)
+async function initKeys() {
+  const roles = ['aliado', 'gestor', 'admin'];
+  for (const role of roles) {
+    const existing = await RegistrationKey.findOne({ role });
+    if (!existing) {
+      await new RegistrationKey({ role, key: `clave_${role}_default` }).save();
+    }
+  }
+}
+initKeys();
+
+// Rutas nuevas para admin
+app.get('/api/admin/registration-keys', auth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Acceso denegado' });
+  const keys = await RegistrationKey.find();
+  res.json(keys);
+});
+
+app.put('/api/admin/registration-keys', auth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Acceso denegado' });
+  const { role, key } = req.body;
+  await RegistrationKey.findOneAndUpdate({ role }, { key }, { upsert: true });
+  res.json({ message: 'Clave actualizada' });
+});
+
+// Modifica registro para validar clave
+app.post('/api/users/register', async (req, res) => {
+  const { username, email, password, role, registrationKey } = req.body;
+  if (role !== 'user') {
+    const keyDoc = await RegistrationKey.findOne({ role });
+    if (!keyDoc || keyDoc.key !== registrationKey) {
+      return res.status(400).json({ message: 'Clave de registro incorrecta' });
+    }
+  }
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const user = new User({ username, email, password: hashedPassword, role: role || 'user' });
+  try {
+    await user.save();
+    res.status(201).json({ message: 'Usuario registrado' });
+  } catch (err) {
+    res.status(400).json({ message: 'Error al registrar usuario', error: err.message });
+  }
+});
 // Rutas
 app.get('/', (req, res) => {
   res.redirect('/api/');
