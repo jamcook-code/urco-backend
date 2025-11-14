@@ -44,7 +44,10 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   role: { type: String, default: 'user' },
   points: { type: Number, default: 0 },
-  key: { type: String }, // Clave personal para aliados
+  key: { type: String },
+  address: { type: String },
+  phone: { type: String },
+  storeName: { type: String },
 });
 
 const recyclingValueSchema = new mongoose.Schema({
@@ -58,6 +61,15 @@ const pointsHistorySchema = new mongoose.Schema({
   type: { type: String, enum: ['ingreso', 'egreso'] },
   points: { type: Number, required: true },
   description: String,
+  performedBy: { type: String },
+  storeName: { type: String },
+  date: { type: Date, default: Date.now },
+});
+
+const profileHistorySchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  oldData: { type: Object },
+  newData: { type: Object },
   date: { type: Date, default: Date.now },
 });
 
@@ -69,6 +81,7 @@ const registrationKeySchema = new mongoose.Schema({
 const User = mongoose.model('User', userSchema);
 const RecyclingValue = mongoose.model('RecyclingValue', recyclingValueSchema);
 const PointsHistory = mongoose.model('PointsHistory', pointsHistorySchema);
+const ProfileHistory = mongoose.model('ProfileHistory', profileHistorySchema);
 const RegistrationKey = mongoose.model('RegistrationKey', registrationKeySchema);
 
 // Inicializar claves por defecto
@@ -124,8 +137,17 @@ app.post('/api/users/login', async (req, res) => {
 });
 
 app.put('/api/users/update-profile', auth, async (req, res) => {
-  const { username, email, key } = req.body;
-  const user = await User.findByIdAndUpdate(req.user._id, { username, email, key }, { new: true });
+  const { email, address, phone, key, storeName } = req.body;
+  const user = await User.findById(req.user._id);
+  const oldData = { email: user.email, address: user.address, phone: user.phone, key: user.key, storeName: user.storeName };
+  user.email = email || user.email;
+  user.address = address || user.address;
+  user.phone = phone || user.phone;
+  user.key = key || user.key;
+  user.storeName = storeName || user.storeName;
+  await user.save();
+  const history = new ProfileHistory({ userId: user._id, oldData, newData: { email, address, phone, key, storeName } });
+  await history.save();
   res.json(user);
 });
 
@@ -136,24 +158,26 @@ app.get('/api/users/points-history', auth, async (req, res) => {
 
 app.post('/api/users/add-points', auth, async (req, res) => {
   if (req.user.role !== 'admin' && req.user.role !== 'gestor') return res.status(403).json({ message: 'Acceso denegado' });
-  const { email, points, description } = req.body;
-  const user = await User.findOne({ email });
+  const { username, points, description } = req.body;
+  const user = await User.findOne({ username });
   if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
   user.points += parseInt(points);
   await user.save();
-  const history = new PointsHistory({ userId: user._id, type: 'ingreso', points, description: description || 'Asignado por gestor/admin' });
+  const performedBy = await User.findById(req.user._id);
+  const history = new PointsHistory({ userId: user._id, type: 'ingreso', points, description: description || 'Asignado por gestor/admin', performedBy: performedBy.username, storeName: performedBy.storeName });
   await history.save();
   res.json({ message: 'Puntos agregados' });
 });
 
 app.post('/api/users/deduct-points', auth, async (req, res) => {
   if (req.user.role !== 'aliado') return res.status(403).json({ message: 'Acceso denegado' });
-  const { email, points, description, key } = req.body;
-  const user = await User.findOne({ email });
+  const { username, points, description, key } = req.body;
+  const user = await User.findOne({ username });
   if (!user || user.key !== key) return res.status(400).json({ message: 'Usuario o clave incorrecta' });
   user.points -= parseInt(points);
   await user.save();
-  const history = new PointsHistory({ userId: user._id, type: 'egreso', points, description });
+  const performedBy = await User.findById(req.user._id);
+  const history = new PointsHistory({ userId: user._id, type: 'egreso', points, description, performedBy: performedBy.username, storeName: performedBy.storeName });
   await history.save();
   res.json({ message: 'Puntos descontados' });
 });
