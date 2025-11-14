@@ -9,7 +9,7 @@ const auth = require('../middleware/auth');
 
 const app = express();
 
-// CORS
+// Configuración de CORS para permitir Netlify
 const corsOptions = {
   origin: ['https://peaceful-crostata-5451a0.netlify.app', 'http://localhost:3000'],
   credentials: true,
@@ -27,7 +27,7 @@ app.options('*', (req, res) => {
 
 app.use(express.json());
 
-// MongoDB
+// Conexión a MongoDB
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -44,7 +44,7 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   role: { type: String, default: 'user' },
   points: { type: Number, default: 0 },
-  key: { type: String }, // Clave para aliados
+  key: { type: String }, // Clave personal para aliados
 });
 
 const recyclingValueSchema = new mongoose.Schema({
@@ -61,60 +61,29 @@ const pointsHistorySchema = new mongoose.Schema({
   date: { type: Date, default: Date.now },
 });
 
-const User = mongoose.model('User', userSchema);
-const RecyclingValue = mongoose.model('RecyclingValue', recyclingValueSchema);
-const PointsHistory = mongoose.model('PointsHistory', pointsHistorySchema);
 const registrationKeySchema = new mongoose.Schema({
-  role: { type: String, required: true, unique: true }, // 'aliado', 'gestor', 'admin'
+  role: { type: String, required: true, unique: true },
   key: { type: String, required: true },
 });
 
+const User = mongoose.model('User', userSchema);
+const RecyclingValue = mongoose.model('RecyclingValue', recyclingValueSchema);
+const PointsHistory = mongoose.model('PointsHistory', pointsHistorySchema);
 const RegistrationKey = mongoose.model('RegistrationKey', registrationKeySchema);
 
-// Inicializa claves por defecto (ejecuta una vez)
+// Inicializar claves por defecto
 async function initKeys() {
   const roles = ['aliado', 'gestor', 'admin'];
   for (const role of roles) {
     const existing = await RegistrationKey.findOne({ role });
     if (!existing) {
       await new RegistrationKey({ role, key: `clave_${role}_default` }).save();
+      console.log(`Clave creada para ${role}: clave_${role}_default`);
     }
   }
 }
 initKeys();
 
-// Rutas nuevas para admin
-app.get('/api/admin/registration-keys', auth, async (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Acceso denegado' });
-  const keys = await RegistrationKey.find();
-  res.json(keys);
-});
-
-app.put('/api/admin/registration-keys', auth, async (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Acceso denegado' });
-  const { role, key } = req.body;
-  await RegistrationKey.findOneAndUpdate({ role }, { key }, { upsert: true });
-  res.json({ message: 'Clave actualizada' });
-});
-
-// Modifica registro para validar clave
-app.post('/api/users/register', async (req, res) => {
-  const { username, email, password, role, registrationKey } = req.body;
-  if (role !== 'user') {
-    const keyDoc = await RegistrationKey.findOne({ role });
-    if (!keyDoc || keyDoc.key !== registrationKey) {
-      return res.status(400).json({ message: 'Clave de registro incorrecta' });
-    }
-  }
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const user = new User({ username, email, password: hashedPassword, role: role || 'user' });
-  try {
-    await user.save();
-    res.status(201).json({ message: 'Usuario registrado' });
-  } catch (err) {
-    res.status(400).json({ message: 'Error al registrar usuario', error: err.message });
-  }
-});
 // Rutas
 app.get('/', (req, res) => {
   res.redirect('/api/');
@@ -126,9 +95,15 @@ app.get('/api/', (req, res) => {
 
 // Usuarios
 app.post('/api/users/register', async (req, res) => {
-  const { username, email, password, key } = req.body;
+  const { username, email, password, role, registrationKey } = req.body;
+  if (role !== 'user') {
+    const keyDoc = await RegistrationKey.findOne({ role });
+    if (!keyDoc || keyDoc.key !== registrationKey) {
+      return res.status(400).json({ message: 'Clave de registro incorrecta' });
+    }
+  }
   const hashedPassword = await bcrypt.hash(password, 10);
-  const user = new User({ username, email, password: hashedPassword, key, role: 'user' });
+  const user = new User({ username, email, password: hashedPassword, role: role || 'user' });
   try {
     await user.save();
     res.status(201).json({ message: 'Usuario registrado' });
@@ -161,12 +136,12 @@ app.get('/api/users/points-history', auth, async (req, res) => {
 
 app.post('/api/users/add-points', auth, async (req, res) => {
   if (req.user.role !== 'admin' && req.user.role !== 'gestor') return res.status(403).json({ message: 'Acceso denegado' });
-  const { email, points } = req.body;
+  const { email, points, description } = req.body;
   const user = await User.findOne({ email });
   if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
   user.points += parseInt(points);
   await user.save();
-  const history = new PointsHistory({ userId: user._id, type: 'ingreso', points, description: 'Asignado por gestor' });
+  const history = new PointsHistory({ userId: user._id, type: 'ingreso', points, description: description || 'Asignado por gestor/admin' });
   await history.save();
   res.json({ message: 'Puntos agregados' });
 });
@@ -184,7 +159,7 @@ app.post('/api/users/deduct-points', auth, async (req, res) => {
 });
 
 app.get('/api/users', auth, async (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Acceso denegado' });
+  if (req.user.role !== 'admin' && req.user.role !== 'gestor') return res.status(403).json({ message: 'Acceso denegado' });
   const users = await User.find();
   res.json(users);
 });
@@ -202,7 +177,8 @@ app.get('/api/recycling-values', auth, async (req, res) => {
 });
 
 app.post('/api/recycling-values', auth, async (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Acceso denegado' });
+  console.log('Rol del usuario:', req.user.role);
+  if (req.user.role !== 'admin' && req.user.role !== 'gestor') return res.status(403).json({ message: 'Acceso denegado' });
   const { material, value, description } = req.body;
   const newValue = new RecyclingValue({ material, value, description });
   try {
@@ -211,6 +187,26 @@ app.post('/api/recycling-values', auth, async (req, res) => {
   } catch (err) {
     res.status(400).json({ message: 'Error al agregar valor', error: err.message });
   }
+});
+
+app.delete('/api/recycling-values/:id', auth, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'gestor') return res.status(403).json({ message: 'Acceso denegado' });
+  await RecyclingValue.findByIdAndDelete(req.params.id);
+  res.json({ message: 'Valor eliminado' });
+});
+
+// Admin: gestionar claves de registro
+app.get('/api/admin/registration-keys', auth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Acceso denegado' });
+  const keys = await RegistrationKey.find();
+  res.json(keys);
+});
+
+app.put('/api/admin/registration-keys', auth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Acceso denegado' });
+  const { role, key } = req.body;
+  await RegistrationKey.findOneAndUpdate({ role }, { key }, { upsert: true });
+  res.json({ message: 'Clave actualizada' });
 });
 
 module.exports = app;
