@@ -218,6 +218,8 @@ app.put('/api/admin/registration-keys', auth, async (req, res) => {
   res.json({ message: 'Clave actualizada' });
 });
 
-// Puerto
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
+// Ruta raíz para Vercel
+app.get('/', (req, res) => res.send('Servidor corriendo'));
+
+// Exportar para Vercel (reemplaza app.listen)
+module.exports = app;
