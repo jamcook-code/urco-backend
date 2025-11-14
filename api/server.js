@@ -9,16 +9,19 @@ const auth = require('../middleware/auth');
 
 const app = express();
 
-// Configuración de CORS para permitir Netlify y localhost
+// Configuración de CORS para permitir Netlify, GitHub Pages y localhost
 const corsOptions = {
-  origin: ['https://peaceful-crostata-5451a0.netlify.app', 'http://localhost:3000', 'https://tuusuario.github.io','https://jamcook-code.github.io/urco-frontend/','https://promapurco.netlify.app/'], 
+  origin: [
+    'http://localhost:3000', // Para desarrollo local
+    'https://jamcook-code.github.io/urco-frontend/', // URL de GitHub Pages
+    'https://promapurco.netlify.app/' // URL de Netlify
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 app.use(cors(corsOptions));
 app.options('*', (req, res) => {
-  res.header('Access-Control-Allow-Origin', 'https://peaceful-crostata-5451a0.netlify.app');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.header('Access-Control-Allow-Credentials', 'true');
