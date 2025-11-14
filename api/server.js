@@ -10,7 +10,6 @@ const app = express();
 // Configuración de CORS para permitir Netlify, GitHub Pages y localhost
 const corsOptions = {
   origin: [
-    'https://peaceful-crostata-5451a0.netlify.app', // Tu URL anterior de Netlify (si aún la usas)
     'http://localhost:3000', // Para desarrollo local
     'https://jamcook-code.github.io', // Origen base de GitHub Pages
     'https://jamcook-code.github.io/urco-frontend/', // URL completa de GitHub Pages
@@ -31,11 +30,11 @@ app.options('*', (req, res) => {
 app.use(express.json());
 
 // Conectar a MongoDB
-mongoose.connect('mongodb+srv://jamcook:jamcook123@cluster0.8zqgk.mongodb.net/urco?retryWrites=true&w=majority', {
+mongoose.connect('mongodb+srv://jamcook17_db_user:NuevaPass123@cluster0.9pnomnh.mongodb.net/?appName=Cluster0', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-});
-
+}).then(() => console.log('Conectado a MongoDB'))
+  .catch(err => console.error('Error de conexión a MongoDB:', err));
 // Modelo de Usuario
 const userSchema = new mongoose.Schema({
   username: String,
