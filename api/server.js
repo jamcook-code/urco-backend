@@ -12,7 +12,8 @@ const corsOptions = {
   origin: [
     'https://peaceful-crostata-5451a0.netlify.app', // Tu URL anterior de Netlify (si aún la usas)
     'http://localhost:3000', // Para desarrollo local
-    'https://jamcook-code.github.io/urco-frontend/', // URL de GitHub Pages
+    'https://jamcook-code.github.io', // Origen base de GitHub Pages
+    'https://jamcook-code.github.io/urco-frontend/', // URL completa de GitHub Pages
     'https://promapurco.netlify.app/' // URL de Netlify
   ],
   credentials: true,
