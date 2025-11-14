@@ -9,9 +9,9 @@ const auth = require('../middleware/auth');
 
 const app = express();
 
-// Configuración de CORS para permitir Netlify
+// Configuración de CORS para permitir Netlify y localhost
 const corsOptions = {
-  origin: ['https://peaceful-crostata-5451a0.netlify.app', 'http://localhost:3000'],
+  origin: ['https://peaceful-crostata-5451a0.netlify.app', 'http://localhost:3000', 'https://tuusuario.github.io'], // Agrega tu URL de GitHub Pages si es necesario
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -44,7 +44,7 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   role: { type: String, default: 'user' },
   points: { type: Number, default: 0 },
-  key: { type: String },
+  key: { type: String }, // Opcional para 'user'
   address: { type: String },
   phone: { type: String },
   storeName: { type: String },
@@ -137,7 +137,7 @@ app.post('/api/users/login', async (req, res) => {
 });
 
 app.put('/api/users/update-profile', auth, async (req, res) => {
-  const { email, address, phone, key, storeName } = req.body;
+  const { email, address, phone, key, storeName, password } = req.body;
   const user = await User.findById(req.user._id);
   const oldData = { email: user.email, address: user.address, phone: user.phone, key: user.key, storeName: user.storeName };
   user.email = email || user.email;
@@ -145,6 +145,9 @@ app.put('/api/users/update-profile', auth, async (req, res) => {
   user.phone = phone || user.phone;
   user.key = key || user.key;
   user.storeName = storeName || user.storeName;
+  if (password) {
+    user.password = await bcrypt.hash(password, 10);
+  }
   await user.save();
   const history = new ProfileHistory({ userId: user._id, oldData, newData: { email, address, phone, key, storeName } });
   await history.save();
@@ -170,10 +173,13 @@ app.post('/api/users/add-points', auth, async (req, res) => {
 });
 
 app.post('/api/users/deduct-points', auth, async (req, res) => {
-  if (req.user.role !== 'aliado') return res.status(403).json({ message: 'Acceso denegado' });
-  const { username, points, description, key } = req.body;
+  if (req.user.role !== 'aliado' && req.user.role !== 'user') return res.status(403).json({ message: 'Acceso denegado' });
+  const { username, points, description } = req.body;
   const user = await User.findOne({ username });
-  if (!user || user.key !== key) return res.status(400).json({ message: 'Usuario o clave incorrecta' });
+  if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+  // Para aliados, key es requerido; para 'user', opcional (si es el mismo usuario)
+  if (req.user.role === 'aliado' && (!req.body.key || user.key !== req.body.key)) return res.status(400).json({ message: 'Clave incorrecta' });
+  if (req.user.role === 'user' && req.user._id.toString() !== user._id.toString()) return res.status(403).json({ message: 'No puedes descontar puntos de otros' });
   user.points -= parseInt(points);
   await user.save();
   const performedBy = await User.findById(req.user._id);
