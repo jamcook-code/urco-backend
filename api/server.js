@@ -11,7 +11,7 @@ const app = express();
 
 // Configuración de CORS para permitir Netlify y localhost
 const corsOptions = {
-  origin: ['https://peaceful-crostata-5451a0.netlify.app', 'http://localhost:3000', 'https://tuusuario.github.io'], // Agrega tu URL de GitHub Pages si es necesario
+  origin: ['https://peaceful-crostata-5451a0.netlify.app', 'http://localhost:3000', 'https://tuusuario.github.io','https://jamcook-code.github.io/urco-frontend/','https://promapurco.netlify.app/'], 
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
