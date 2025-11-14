@@ -13,7 +13,8 @@ const app = express();
 const corsOptions = {
   origin: [
     'http://localhost:3000', // Para desarrollo local
-    'https://jamcook-code.github.io/urco-frontend/', // URL de GitHub Pages
+    'https://jamcook-code.github.io', // Origen base de GitHub Pages
+    'https://jamcook-code.github.io/urco-frontend/', // URL completa de GitHub Pages
     'https://promapurco.netlify.app/' // URL de Netlify
   ],
   credentials: true,
@@ -29,7 +30,6 @@ app.options('*', (req, res) => {
 });
 
 app.use(express.json());
-
 // Conexión a MongoDB
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
