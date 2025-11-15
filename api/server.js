@@ -30,7 +30,7 @@ app.options('*', (req, res) => {
 app.use(express.json());
 
 // Conectar a MongoDB
-mongoose.connect('mongodb+srv://jamcook17_db_user:NuevaPass123@cluster0.9pnomnh.mongodb.net/?appName=Cluster0', {
+mongoose.connect('mongodb+srv://jamcook17_db_user:NuevaPass123@cluster0.9pnomnh.mongodb.net/urco?appName=Cluster0', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 }).then(() => console.log('Conectado a MongoDB'))
