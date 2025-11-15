@@ -35,6 +35,7 @@ mongoose.connect('mongodb+srv://jamcook17_db_user:NuevaPass123@cluster0.9pnomnh.
   useUnifiedTopology: true,
 }).then(() => console.log('Conectado a MongoDB'))
   .catch(err => console.error('Error de conexión a MongoDB:', err));
+
 // Modelo de Usuario
 const userSchema = new mongoose.Schema({
   username: String,
@@ -103,36 +104,36 @@ app.post('/api/users/login', async (req, res) => {
 app.post('/api/users/register', async (req, res) => {
   const { username, email, password, role, registrationKey, address, phone } = req.body;
   console.log('Intentando registrar:', { username, email, role });
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const user = new User({ username, email, password: hashedPassword, role, address, phone });
   try {
-         await user.save();
-         console.log('Usuario guardado:', user);
-         res.json({ message: 'Usuario registrado' });
-       } catch (error) {
-         console.error('Error al guardar usuario:', error);
-         res.status(500).json({ message: 'Error al registrar' });
-       }
-  if (role !== 'user') {
-    let keyValid = false;
-    if (role === 'admin') {
-      // Clave por defecto para admin: '1234'
-      const keyDoc = await RegistrationKey.findOne({ role });
-      if (keyDoc) {
-        keyValid = keyDoc.key === registrationKey;
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = new User({ username, email, password: hashedPassword, role, address, phone });
+    
+    if (role !== 'user') {
+      let keyValid = false;
+      if (role === 'admin') {
+        // Clave por defecto para admin: '1234'
+        const keyDoc = await RegistrationKey.findOne({ role });
+        if (keyDoc) {
+          keyValid = keyDoc.key === registrationKey;
+        } else {
+          keyValid = registrationKey === '1234';  // Por defecto
+        }
       } else {
-        keyValid = registrationKey === '1234';  // Por defecto
+        const keyDoc = await RegistrationKey.findOne({ role });
+        keyValid = keyDoc && keyDoc.key === registrationKey;
       }
-    } else {
-      const keyDoc = await RegistrationKey.findOne({ role });
-      keyValid = keyDoc && keyDoc.key === registrationKey;
+      if (!keyValid) {
+        return res.status(400).json({ message: 'Clave de registro inválida' });
+      }
     }
-    if (!keyValid) {
-      return res.status(400).json({ message: 'Clave de registro inválida' });
-    }
+    
+    await user.save();
+    console.log('Usuario guardado:', user);
+    res.json({ message: 'Usuario registrado' });
+  } catch (error) {
+    console.error('Error al guardar usuario:', error);
+    res.status(500).json({ message: 'Error al registrar' });
   }
-  await user.save();
-  res.json({ message: 'Usuario registrado' });
 });
 
 app.put('/api/users/update-profile', auth, async (req, res) => {
