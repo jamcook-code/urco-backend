@@ -36,6 +36,21 @@ mongoose.connect('mongodb+srv://jamcook17_db_user:NuevaPass123@cluster0.9pnomnh.
 }).then(() => console.log('Conectado a MongoDB'))
   .catch(err => console.error('Error de conexión a MongoDB:', err));
 
+// Inicializar claves de registro por defecto
+const initializeRegistrationKeys = async () => {
+  const roles = ['admin', 'gestor', 'aliado'];
+  for (const role of roles) {
+    const existingKey = await RegistrationKey.findOne({ role });
+    if (!existingKey) {
+      const newKey = new RegistrationKey({ role, key: '1234' });
+      await newKey.save();
+      console.log(`Clave por defecto creada para ${role}: 1234`);
+    }
+  }
+};
+
+initializeRegistrationKeys();
+
 // Modelo de Usuario
 const userSchema = new mongoose.Schema({
   username: String,
