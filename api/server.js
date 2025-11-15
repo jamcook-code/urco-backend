@@ -153,6 +153,7 @@ app.post('/api/users/register', async (req, res) => {
 
 app.put('/api/users/update-profile', auth, async (req, res) => {
   const { email, address, phone, password, key, storeName } = req.body;
+  console.log('req.body.key recibido en update-profile:', req.body.key); // Log agregado
   const user = await User.findById(req.user._id);
   if (email) user.email = email;
   if (address !== undefined) user.address = address;
@@ -161,6 +162,7 @@ app.put('/api/users/update-profile', auth, async (req, res) => {
   if (key !== undefined) user.key = key;
   if (storeName !== undefined) user.storeName = storeName;
   await user.save();
+  console.log('Usuario actualizado, key guardada:', user.key); // Log agregado
   res.json({ message: 'Perfil actualizado' });
 });
 
@@ -182,6 +184,8 @@ app.post('/api/users/deduct-points', auth, async (req, res) => {
   const { username, points, description, password } = req.body; // Cambiar 'key' por 'password'
   const user = await User.findOne({ username });
   if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+  console.log('user.key en backend:', user.key); // Log agregado
+  console.log('req.body.key recibido:', req.body.key); // Log agregado
   // Para aliados, verificar clave; para 'user', verificar contraseña de login
   if (req.user.role === 'aliado') {
     if (!req.body.key || user.key !== req.body.key) return res.status(400).json({ message: 'Clave incorrecta' });
