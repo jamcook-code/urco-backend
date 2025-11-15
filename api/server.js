@@ -102,8 +102,17 @@ app.post('/api/users/login', async (req, res) => {
 
 app.post('/api/users/register', async (req, res) => {
   const { username, email, password, role, registrationKey, address, phone } = req.body;
+  console.log('Intentando registrar:', { username, email, role });
   const hashedPassword = await bcrypt.hash(password, 10);
   const user = new User({ username, email, password: hashedPassword, role, address, phone });
+  try {
+         await user.save();
+         console.log('Usuario guardado:', user);
+         res.json({ message: 'Usuario registrado' });
+       } catch (error) {
+         console.error('Error al guardar usuario:', error);
+         res.status(500).json({ message: 'Error al registrar' });
+       }
   if (role !== 'user') {
     let keyValid = false;
     if (role === 'admin') {
