@@ -105,8 +105,20 @@ app.post('/api/users/register', async (req, res) => {
   const hashedPassword = await bcrypt.hash(password, 10);
   const user = new User({ username, email, password: hashedPassword, role, address, phone });
   if (role !== 'user') {
-    const keyDoc = await RegistrationKey.findOne({ role });
-    if (!keyDoc || keyDoc.key !== registrationKey) {
+    let keyValid = false;
+    if (role === 'admin') {
+      // Clave por defecto para admin: '1234'
+      const keyDoc = await RegistrationKey.findOne({ role });
+      if (keyDoc) {
+        keyValid = keyDoc.key === registrationKey;
+      } else {
+        keyValid = registrationKey === '1234';  // Por defecto
+      }
+    } else {
+      const keyDoc = await RegistrationKey.findOne({ role });
+      keyValid = keyDoc && keyDoc.key === registrationKey;
+    }
+    if (!keyValid) {
       return res.status(400).json({ message: 'Clave de registro inválida' });
     }
   }
