@@ -181,19 +181,16 @@ app.post('/api/users/add-points', auth, async (req, res) => {
 
 app.post('/api/users/deduct-points', auth, async (req, res) => {
   if (req.user.role !== 'aliado' && req.user.role !== 'user') return res.status(403).json({ message: 'Acceso denegado' });
-  const { username, points, description, password } = req.body; // Cambiar 'key' por 'password'
+  const { username, points, description, password } = req.body; // Usar 'password' para ambos
   const user = await User.findOne({ username });
   if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
-  console.log('user.key en backend:', user.key); // Log agregado
-  console.log('req.body.key recibido:', req.body.key); // Log agregado
-  // Para aliados, verificar clave; para 'user', verificar contraseña de login
-  if (req.user.role === 'aliado') {
-    if (!req.body.key || user.key !== req.body.key) return res.status(400).json({ message: 'Clave incorrecta' });
-  } else if (req.user.role === 'user' && req.user._id.toString() !== user._id.toString()) {
+  console.log('user.password en backend:', user.password); // Log para depurar
+  console.log('req.body.password recibido:', req.body.password); // Log para depurar
+  // Para aliados y users, verificar contraseña
+  if (!(await bcrypt.compare(password, user.password))) return res.status(400).json({ message: 'Contraseña incorrecta' });
+  // Para user, verificar que no desconte de otros
+  if (req.user.role === 'user' && req.user._id.toString() !== user._id.toString()) {
     return res.status(403).json({ message: 'No puedes descontar puntos de otros' });
-  } else if (req.user.role === 'user') {
-    // Verificar contraseña de login para 'user'
-    if (!(await bcrypt.compare(password, user.password))) return res.status(400).json({ message: 'Contraseña incorrecta' });
   }
   user.points -= parseInt(points);
   await user.save();
@@ -202,7 +199,6 @@ app.post('/api/users/deduct-points', auth, async (req, res) => {
   await history.save();
   res.json({ message: 'Puntos descontados' });
 });
-
 app.get('/api/users/points-history', auth, async (req, res) => {
   const history = await PointsHistory.find({ userId: req.user._id });
   res.json(history);
